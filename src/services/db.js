@@ -30,7 +30,6 @@ export const addVehicle = async (userId, vehicleData) => {
 export const updateVehicle = async (vehicleId, updatedData) => {
   try {
     const vehicleRef = doc(db, 'vehicles', vehicleId);
-    // Removemos o ID dos dados para não tentar sobrescrever o ID do documento no Firebase
     const { id, ...dataToUpdate } = updatedData;
     
     await updateDoc(vehicleRef, {
@@ -90,6 +89,22 @@ export const addMaintenanceLog = async (vehicleId, logData) => {
     return docRef.id;
   } catch (error) {
     console.error("Erro ao adicionar histórico: ", error);
+    throw error;
+  }
+};
+
+// 6. Atualizar um log de manutenção existente (NOVO)
+export const updateMaintenanceLog = async (logId, updatedData) => {
+  try {
+    const logRef = doc(db, 'maintenance_logs', logId);
+    const { id, createdAt, ...dataToUpdate } = updatedData; // Evita sobrescrever ID e Data de criação original
+    
+    await updateDoc(logRef, {
+      ...dataToUpdate,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar histórico: ", error);
     throw error;
   }
 };

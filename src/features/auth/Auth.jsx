@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Wrench, Loader2, Mail, Lock } from 'lucide-react';
+import { Wrench, Loader2, Mail, Lock, ArrowLeft } from 'lucide-react';
 
 export default function Auth({ initialMode = 'login' }) {
   const [isLogin, setIsLogin] = useState(initialMode === 'login');
@@ -34,7 +34,7 @@ export default function Auth({ initialMode = 'login' }) {
       navigate('/dashboard');
     } catch (err) {
       if (err.code === 'auth/email-already-in-use') setError('Este e-mail já está em uso.');
-      else if (err.code === 'auth/invalid-credential') setError('Credenciais inválidas. Verifique seu e-mail e senha.');
+      else if (err.code === 'auth/invalid-credential') setError('Credenciais inválidas. Verifique o seu e-mail e senha.');
       else setError(`Falha ao ${isLogin ? 'entrar' : 'criar conta'}. Tente novamente.`);
     } finally {
       setLoading(false);
@@ -62,10 +62,22 @@ export default function Auth({ initialMode = 'login' }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-950 font-sans py-12 px-4 relative overflow-hidden transition-all duration-500">
+      
+      {/* Botão de Voltar para a Landing Page */}
+      <button 
+        onClick={() => navigate('/')}
+        className="absolute top-6 left-6 md:top-10 md:left-10 flex items-center gap-3 text-zinc-400 hover:text-white transition-colors z-50 group font-medium text-sm outline-none"
+      >
+        <div className="p-2.5 bg-white/5 border border-white/10 rounded-xl group-hover:bg-white/10 group-hover:-translate-x-1 transition-all">
+          <ArrowLeft size={18} />
+        </div>
+        <span className="hidden sm:block">Página Inicial</span>
+      </button>
+
       {/* Background Decorativo e Glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-800 via-zinc-950 to-zinc-950"></div>
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-red-600/10 blur-[100px] rounded-full"></div>
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-orange-600/10 blur-[100px] rounded-full"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-800 via-zinc-950 to-zinc-950 pointer-events-none"></div>
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-red-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-orange-600/10 blur-[100px] rounded-full pointer-events-none"></div>
       
       <div className="w-full max-w-md relative z-10">
         
@@ -80,7 +92,7 @@ export default function Auth({ initialMode = 'login' }) {
             AUTO<span className="bg-gradient-to-br from-red-500 to-orange-500 bg-clip-text text-transparent">HUB</span>
           </h2>
           <p className="text-zinc-400 mt-3 text-sm tracking-wide">
-            {isLogin ? 'Acesse o prontuário digital da sua frota' : 'Inicie a gestão inteligente do seu veículo'}
+            {isLogin ? 'Aceda ao prontuário digital da sua frota' : 'Inicie a gestão inteligente do seu veículo'}
           </p>
         </div>
 
@@ -141,7 +153,7 @@ export default function Auth({ initialMode = 'login' }) {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
                     className="w-full pl-11 pr-4 py-3.5 bg-zinc-950/50 border border-white/10 rounded-xl text-zinc-100 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all placeholder:text-zinc-600"
-                    placeholder="Repita sua senha"
+                    placeholder="Repita a sua senha"
                   />
                 </div>
               </div>
@@ -154,10 +166,10 @@ export default function Auth({ initialMode = 'login' }) {
             >
               {loading ? (
                 <>
-                  <Loader2 size={18} className="animate-spin" /> Processando...
+                  <Loader2 size={18} className="animate-spin" /> A Processar...
                 </>
               ) : (
-                isLogin ? 'Acessar Garagem' : 'Criar Conta'
+                isLogin ? 'Aceder à Garagem' : 'Criar Conta'
               )}
             </button>
           </form>
@@ -192,13 +204,13 @@ export default function Auth({ initialMode = 'login' }) {
         {/* Rodapé Alternar Modo */}
         <div className="mt-8 text-center">
           <p className="text-sm text-zinc-500">
-            {isLogin ? 'Novo por aqui? ' : 'Já faz parte da equipe? '}
+            {isLogin ? 'Novo por aqui? ' : 'Já faz parte da equipa? '}
             <button 
               type="button"
               onClick={toggleMode}
               className="font-bold text-white hover:text-red-500 transition-colors border-b border-transparent hover:border-red-500 pb-0.5"
             >
-              {isLogin ? 'Cadastre sua frota' : 'Acesse o painel'}
+              {isLogin ? 'Cadastre a sua frota' : 'Aceda ao painel'}
             </button>
           </p>
         </div>
