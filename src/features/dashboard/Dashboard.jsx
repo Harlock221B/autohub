@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Gauge, CarFront, PlusCircle, Fuel, ShieldCheck, TrendingUp, AlertCircle, Wrench, Edit, Info } from 'lucide-react';
+import { Activity, Gauge, CarFront, PlusCircle, Fuel, ShieldCheck, TrendingUp, AlertCircle, Wrench, Edit, Info, CheckCircle2, Download } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserVehicles } from '../../services/db';
+import { getUserVehicles, getVehicleLogs } from '../../services/db';
+import { generateVehicleReport } from '../../utils/pdfGenerator';
 
 export default function Dashboard() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [greeting, setGreeting] = useState('Olá');
 
@@ -18,20 +20,26 @@ export default function Dashboard() {
     else if (hour >= 12 && hour < 18) setGreeting('Boa tarde');
     else setGreeting('Boa noite');
 
-    async function fetchVehicles() {
+    async function fetchData() {
       if (currentUser) {
         try {
           const data = await getUserVehicles(currentUser.uid);
           setVehicles(data);
+          
+          // Se houver veículo, busca o prontuário dele
+          if (data.length > 0) {
+             const logsData = await getVehicleLogs(data[0].id);
+             setLogs(logsData);
+          }
         } catch (error) {
-          console.error("Erro ao carregar veículos", error);
+          console.error("Erro ao carregar dados", error);
         } finally {
           // Pequena pausa intencional para garantir uma transição suave do esqueleto visual
           setTimeout(() => setLoading(false), 600);
         }
       }
     }
-    fetchVehicles();
+    fetchData();
   }, [currentUser]);
 
   // Extração do primeiro nome do usuário
@@ -47,6 +55,116 @@ export default function Dashboard() {
   const formatCurrency = (val) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
+
+  const mainVehicle = vehicles[0];
+
+  // Lógica de Manutenção Preditiva Dinâmica (Movida para antes dos retornos antecipados para respeitar as Regras dos Hooks)
+  const predictiveAlerts = useMemo(() => {
+    if (!mainVehicle) return [];
+    const currentKm = Number(mainVehicle.currentKm) || 0;
+    
+    // Busca logs de óleo e correia (case-insensitive)
+    const oilLogs = logs.filter(l => l.serviceType?.toLowerCase().includes('óleo') || l.serviceType?.toLowerCase().includes('oleo'));
+    const beltLogs = logs.filter(l => l.serviceType?.toLowerCase().includes('correia'));
+
+    const getLatestKm = (logArray) => {
+      if (logArray.length === 0) return null;
+      return Math.max(...logArray.map(l => Number(l.kmAtService) || 0));
+    };
+
+    const latestOil = getLatestKm(oilLogs);
+    const latestBelt = getLatestKm(beltLogs);
+
+    const alerts = [];
+
+    // Óleo (intervalo sugerido: 10.000km)
+    const oilInterval = 10000;
+    if (latestOil === null) {
+      alerts.push({
+        id: 'oil',
+        title: 'Troca de Óleo e Filtro',
+        message: 'Sem registro no histórico. Verifique o nível e a validade.',
+        urgent: true,
+        icon: AlertCircle
+      });
+    } else {
+      const nextOilKm = latestOil + oilInterval;
+      const remainingOil = nextOilKm - currentKm;
+      
+      if (remainingOil <= 0) {
+        alerts.push({
+          id: 'oil',
+          title: 'Troca de Óleo Atrasada',
+          message: `O limite de ${nextOilKm.toLocaleString('pt-BR')} km foi ultrapassado. Agende a troca!`,
+          urgent: true,
+          icon: AlertCircle
+        });
+      } else if (remainingOil <= 2000) {
+        alerts.push({
+          id: 'oil',
+          title: 'Troca de Óleo e Filtro',
+          message: `Faltam apenas ${remainingOil.toLocaleString('pt-BR')} km para a próxima troca prevista.`,
+          urgent: true,
+          icon: AlertCircle
+        });
+      } else {
+        alerts.push({
+          id: 'oil',
+          title: 'Troca de Óleo em dia',
+          message: `Próxima troca prevista para os ${nextOilKm.toLocaleString('pt-BR')} km.`,
+          urgent: false,
+          icon: CheckCircle2
+        });
+      }
+    }
+
+    // Correia Dentada (intervalo sugerido: 50.000km)
+    const beltInterval = 50000;
+    if (latestBelt === null) {
+       // se o carro passou de 50.000 e nao tem registro, alertar
+       if (currentKm >= 50000) {
+         alerts.push({
+            id: 'belt',
+            title: 'Correia Dentada',
+            message: 'Atenção: Carro com km elevada sem registro de troca no sistema.',
+            urgent: true,
+            icon: AlertCircle
+         });
+       } else {
+         const remaining = 50000 - currentKm;
+         alerts.push({
+            id: 'belt',
+            title: 'Correia Dentada',
+            message: `Verificação sugerida aos 50.000 km (Faltam ${remaining.toLocaleString('pt-BR')} km).`,
+            urgent: false,
+            icon: Wrench
+         });
+       }
+    } else {
+       const nextBeltKm = latestBelt + beltInterval;
+       const remainingBelt = nextBeltKm - currentKm;
+       
+       if (remainingBelt <= 3000) {
+         alerts.push({
+            id: 'belt',
+            title: 'Revisão da Correia',
+            message: `Troca recomendada em breve! Faltam ${remainingBelt > 0 ? remainingBelt.toLocaleString('pt-BR') : 0} km.`,
+            urgent: true,
+            icon: AlertCircle
+         });
+       } else {
+         alerts.push({
+            id: 'belt',
+            title: 'Correia Dentada',
+            message: `Próxima substituição aos ${nextBeltKm.toLocaleString('pt-BR')} km.`,
+            urgent: false,
+            icon: CheckCircle2
+         });
+       }
+    }
+
+    return alerts;
+  }, [mainVehicle, logs]);
 
   // SKELETON LOADING (Evita piscadas bruscas de tela)
   if (loading) {
@@ -104,7 +222,6 @@ export default function Dashboard() {
     );
   }
 
-  const mainVehicle = vehicles[0];
   const fipeNumber = parseFipeToNumber(mainVehicle.fipeValue);
   const autohubValue = fipeNumber > 0 ? fipeNumber * 1.065 : 0; // Valorização de 6.5% baseada no histórico
 
@@ -118,6 +235,8 @@ export default function Dashboard() {
     }
     return mainVehicle.manufactureYear || mainVehicle.modelYear || mainVehicle.year || 'N/A';
   };
+
+
 
   return (
     <div className="space-y-8 pb-10">
@@ -171,13 +290,23 @@ export default function Dashboard() {
                 {mainVehicle.engine && <span>{mainVehicle.engine}</span>}
               </div>
 
-              <button 
-                onClick={() => navigate('/manage', { state: { editVehicle: mainVehicle } })}
-                className="mt-6 flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-bold text-slate-600 dark:text-zinc-300 transition-all hover:pr-5 w-max"
-              >
-                <Edit size={16} className="text-slate-400 dark:text-zinc-500" />
-                Editar Dossiê
-              </button>
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <button 
+                  onClick={() => navigate('/manage', { state: { editVehicle: mainVehicle } })}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-bold text-slate-600 dark:text-zinc-300 transition-all w-max"
+                >
+                  <Edit size={16} className="text-slate-400 dark:text-zinc-500" />
+                  Editar Dados
+                </button>
+
+                <button 
+                  onClick={() => generateVehicleReport(mainVehicle, logs, predictiveAlerts, autohubValue)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 border border-red-200 dark:border-red-500/20 rounded-xl text-sm font-bold text-red-600 dark:text-red-400 transition-all w-max"
+                >
+                  <Download size={16} />
+                  Baixar Dossiê PDF
+                </button>
+              </div>
             </div>
             
             <div className="hidden sm:flex h-16 w-16 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-2xl items-center justify-center shadow-sm dark:shadow-none transition-transform duration-500 group-hover:rotate-6">
@@ -292,7 +421,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Widget Direito: Alertas Preditivos */}
+        {/* Widget Direito: Alertas Preditivos (Agora Dinâmico) */}
         <div className="lg:col-span-2 bg-white dark:bg-zinc-900/40 dark:backdrop-blur-xl p-8 rounded-[2rem] shadow-sm hover:shadow-md dark:shadow-none border border-slate-200 dark:border-white/10 transition-all duration-500 animate-in fade-in slide-in-from-bottom-4 delay-400 fill-mode-both hover:-translate-y-1">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -303,34 +432,38 @@ export default function Dashboard() {
               onClick={() => navigate('/history')}
               className="text-sm font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
             >
-              Ver Histórico Completo
+              Ver Histórico
             </button>
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center gap-4 p-4 rounded-2xl border border-orange-200 dark:border-orange-500/30 bg-orange-50/50 dark:bg-orange-500/5 transition-colors hover:bg-orange-50 dark:hover:bg-orange-500/10 group cursor-pointer">
-              <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0 group-hover:scale-110 transition-transform">
-                <AlertCircle size={24} />
+            {predictiveAlerts.length > 0 ? (
+              predictiveAlerts.map((alert) => (
+                <div key={alert.id} className={`flex items-center gap-4 p-4 rounded-2xl border transition-colors group cursor-pointer ${
+                  alert.urgent 
+                    ? 'border-orange-200 dark:border-orange-500/30 bg-orange-50/50 dark:bg-orange-500/5 hover:bg-orange-50 dark:hover:bg-orange-500/10' 
+                    : 'border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10'
+                }`}>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 shadow-sm dark:shadow-none ${
+                    alert.urgent
+                      ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400'
+                      : 'bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-white'
+                  }`}>
+                    <alert.icon size={24} className={alert.urgent ? '' : (alert.icon === CheckCircle2 ? 'text-emerald-500' : '')} />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-slate-900 dark:text-zinc-100">{alert.title}</h4>
+                    <p className="text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
+                      {alert.message}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex items-center justify-center p-8 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5 text-slate-500 dark:text-zinc-400">
+                Calculando manutenções preditivas...
               </div>
-              <div className="flex-1">
-                <h4 className="font-bold text-slate-900 dark:text-zinc-100">Troca de Óleo e Filtro</h4>
-                <p className="text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
-                  Previsto para atingir limite nos próximos <span className="font-bold text-orange-600 dark:text-orange-400">1.200 km</span>.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors group cursor-pointer">
-              <div className="w-12 h-12 rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center text-slate-400 dark:text-zinc-400 shrink-0 shadow-sm dark:shadow-none group-hover:scale-110 transition-transform group-hover:text-slate-600 dark:group-hover:text-white">
-                <Wrench size={24} />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-bold text-slate-900 dark:text-zinc-100">Correia Dentada</h4>
-                <p className="text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
-                  Verificação agendada para os <span className="font-bold text-slate-700 dark:text-zinc-300">100.000 km</span> (Faltam 15.000 km).
-                </p>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 

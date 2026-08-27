@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FileText, Wrench, Calendar, Info, Gauge, ShieldCheck, 
-  PlusCircle, Banknote, Sparkles, FileBadge, AlertTriangle
+  PlusCircle, Banknote, Sparkles, FileBadge, AlertTriangle, Search, Filter
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserVehicles, getVehicleLogs } from '../../services/db';
@@ -13,6 +13,10 @@ export default function History() {
   const [vehicle, setVehicle] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Estados de busca e filtro
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('Todas');
 
   useEffect(() => {
     async function fetchData() {
@@ -51,6 +55,20 @@ export default function History() {
         return { icon: Wrench, color: 'text-slate-500', bg: 'bg-slate-50 dark:bg-white/5' };
     }
   };
+
+  // Filtragem local
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      const matchSearch = 
+        log.serviceType?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        log.notes?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchCategory = selectedCategory === 'Todas' || log.category === selectedCategory;
+      return matchSearch && matchCategory;
+    });
+  }, [logs, searchTerm, selectedCategory]);
+
+  // Categorias únicas para o filtro
+  const availableCategories = ['Todas', ...new Set(logs.map(l => l.category).filter(Boolean))];
 
   // SKELETON LOADING
   if (loading) {
@@ -122,6 +140,39 @@ export default function History() {
 
       <div className="bg-white dark:bg-zinc-900/60 dark:backdrop-blur-xl rounded-[2rem] shadow-sm hover:shadow-md dark:shadow-none border border-slate-200 dark:border-white/10 p-6 md:p-10 transition-all duration-500">
         
+        {/* BARRA DE BUSCA E FILTROS */}
+        {logs.length > 0 && (
+          <div className="flex flex-col md:flex-row gap-4 mb-10 animate-in fade-in slide-in-from-top-2 duration-500">
+            <div className="relative flex-1 group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-zinc-500 group-focus-within:text-red-500 transition-colors">
+                <Search size={18} />
+              </div>
+              <input 
+                type="text" 
+                placeholder="Buscar por serviço, peça ou observação..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-zinc-100 focus:ring-1 focus:ring-red-500 outline-none shadow-sm placeholder:text-slate-400 dark:placeholder:text-zinc-500 transition-all"
+              />
+            </div>
+            
+            <div className="relative md:w-64">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-zinc-500">
+                <Filter size={18} />
+              </div>
+              <select 
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-zinc-100 focus:ring-1 focus:ring-red-500 outline-none shadow-sm transition-all appearance-none cursor-pointer"
+              >
+                {availableCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
         {/* ESTADO: SEM REGISTROS */}
         {logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 animate-in fade-in duration-700">
@@ -133,13 +184,22 @@ export default function History() {
               Nenhum serviço, acessório ou manutenção foi registado para o seu {vehicle.model} ainda.
             </p>
           </div>
+        ) : filteredLogs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 animate-in fade-in duration-500">
+            <div className="p-4 bg-slate-50 dark:bg-zinc-950 rounded-full mb-4 border border-slate-100 dark:border-white/5">
+              <Search size={32} className="text-slate-300 dark:text-zinc-600" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-100 mb-1">Nenhum resultado encontrado</h3>
+            <p className="text-slate-500 dark:text-zinc-400 text-center text-sm">
+              Tente alterar os termos da busca ou a categoria selecionada.
+            </p>
+          </div>
         ) : (
-          
           /* LINHA DO TEMPO (TIMELINE) */
           <div className="relative border-l-2 border-slate-200 dark:border-white/10 ml-4 md:ml-8 space-y-12 py-4">
             
-            {logs.map((log, index) => {
-              const delayClass = `delay-[${index * 150}ms]`; 
+            {filteredLogs.map((log, index) => {
+              const delayClass = `delay-[${index * 50}ms]`; 
               const style = getCategoryStyle(log.category);
               const Icon = style.icon;
 
@@ -152,7 +212,7 @@ export default function History() {
               }
 
               return (
-                <div key={log.id || index} className={`relative pl-8 md:pl-12 group animate-in slide-in-from-bottom-8 fade-in duration-700 fill-mode-both ${delayClass}`}>
+                <div key={log.id || index} className={`relative pl-8 md:pl-12 group animate-in slide-in-from-bottom-4 fade-in duration-500 fill-mode-both ${delayClass}`}>
                   
                   {/* Ponto da Linha do Tempo */}
                   <div className="absolute -left-[21px] top-4 md:top-6 bg-white dark:bg-zinc-900 p-1.5 rounded-full border-4 border-slate-100 dark:border-zinc-800 transition-colors duration-300 group-hover:border-red-100 dark:group-hover:border-red-500/30 z-10">
