@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { LayoutDashboard, CarFront, FileText, Settings, LogOut, Menu, X, Sun, Moon, ChevronRight } from 'lucide-react';
 
+import AutoHubLogo from './AutoHubLogo';
+
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -55,11 +57,14 @@ export default function Layout({ children }) {
       <aside className={`fixed inset-y-0 left-0 z-50 w-[280px] bg-zinc-950/95 backdrop-blur-2xl text-zinc-100 border-r border-white/5 transform transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) lg:static lg:translate-x-0 flex flex-col shadow-2xl ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         
         {/* Logo Text */}
-        <div className="flex items-center justify-between h-24 px-8 relative overflow-hidden">
+        <div className="flex items-center justify-between h-24 px-6 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-red-500/5 to-transparent opacity-50"></div>
-          <h1 className="text-3xl font-black tracking-tighter text-white relative z-10 hover:scale-105 transition-transform cursor-default">
-            AUTO<span className="bg-gradient-to-br from-red-500 to-orange-500 bg-clip-text text-transparent">HUB</span>
-          </h1>
+          <div className="flex items-center gap-3 relative z-10 hover:scale-105 transition-transform cursor-default">
+            <AutoHubLogo className="w-9 h-9" colorClass="text-red-500" />
+            <h1 className="text-3xl font-black tracking-tighter text-white">
+              AUTO<span className="bg-gradient-to-br from-red-500 to-orange-500 bg-clip-text text-transparent">HUB</span>
+            </h1>
+          </div>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 rounded-full bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white transition-all relative z-10 active:scale-95">
             <X size={20} />
           </button>
@@ -159,9 +164,12 @@ export default function Layout({ children }) {
             <Menu size={20} />
           </button>
           
-          <span className="text-xl font-black tracking-tighter text-slate-900 dark:text-white absolute left-1/2 -translate-x-1/2">
-            AUTO<span className="bg-gradient-to-br from-red-500 to-orange-500 bg-clip-text text-transparent">HUB</span>
-          </span>
+          <div className="flex items-center gap-2 absolute left-1/2 -translate-x-1/2">
+            <AutoHubLogo className="w-6 h-6" colorClass="text-red-500" />
+            <span className="text-xl font-black tracking-tighter text-slate-900 dark:text-white">
+              AUTO<span className="bg-gradient-to-br from-red-500 to-orange-500 bg-clip-text text-transparent">HUB</span>
+            </span>
+          </div>
           
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-500 to-orange-500 p-[2px]">
             <div className="w-full h-full bg-slate-50 dark:bg-zinc-950 rounded-full flex items-center justify-center text-slate-900 dark:text-white font-bold text-xs">

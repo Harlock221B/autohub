@@ -4,6 +4,7 @@ import {
   Menu, X, Mail, Phone, MapPin, CheckCircle2 
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import AutoHubLogo from '../../components/AutoHubLogo';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 md:px-12 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo(0, 0)}>
             <div className="p-2 bg-gradient-to-br from-red-600 to-orange-500 rounded-lg">
-              <CarFront className="text-white" size={24} />
+              <AutoHubLogo className="w-6 h-6" colorClass="text-white" />
             </div>
             <h1 className="text-2xl font-black tracking-tighter">
               AUTO<span className="bg-gradient-to-br from-red-500 to-orange-500 bg-clip-text text-transparent">HUB</span>
@@ -180,7 +181,7 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 mb-16">
             <div>
               <div className="flex items-center gap-2 mb-6">
-                <div className="p-2 bg-gradient-to-br from-red-600 to-orange-500 rounded-lg"><CarFront className="text-white" size={20} /></div>
+                <div className="p-2 bg-gradient-to-br from-red-600 to-orange-500 rounded-lg"><AutoHubLogo className="w-5 h-5" colorClass="text-white" /></div>
                 <h1 className="text-xl font-black tracking-tighter">AUTO<span className="text-red-500">HUB</span></h1>
               </div>
               <p className="text-zinc-500 max-w-xs mb-8">O padrão definitivo de gestão e transparência para o mercado automotivo.</p>
